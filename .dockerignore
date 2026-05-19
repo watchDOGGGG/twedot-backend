@@ -1,0 +1,8 @@
+.github
+.env.example
+docker-compose.yml
+docker-compose-main.yml
+Dockerfile
+.gitignore
+package-lock.json
+node_modules

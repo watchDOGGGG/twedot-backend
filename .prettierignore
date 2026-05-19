@@ -1,0 +1,9 @@
+node_modules
+build
+.vscode
+jest.config.ts
+package-lock.json
+package.json
+tsconfig.json
+README.md
+```
