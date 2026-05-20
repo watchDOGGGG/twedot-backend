@@ -18,6 +18,8 @@ import { forwardRouterV1 } from './modules/messages/forward/forward.routes'
 
 const app: Application = express()
 
+app.set('trust proxy', 1)
+
 // Security headers — must be before any route
 app.use(helmet())
 
