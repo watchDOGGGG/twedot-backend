@@ -81,7 +81,7 @@ class UserService {
         message: 'OTP sent successfully',
         phone_number,
         existingUser: true,
-        ...(process.env.NODE_ENV === 'development' && { otp }),
+        otp,
       }
     }
 
@@ -117,7 +117,7 @@ class UserService {
       message: 'OTP sent successfully',
       phone_number,
       existingUser: false,
-      ...(process.env.NODE_ENV === 'development' && { otp }),
+      otp,
     }
   }
 
@@ -140,7 +140,7 @@ class UserService {
     return {
       message: 'OTP resent successfully',
       phone_number,
-      ...(process.env.NODE_ENV === 'development' && { newOtp }),
+      otp: newOtp,
     }
   }
 
