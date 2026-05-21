@@ -56,7 +56,9 @@ export const authenticateToken = asyncHandler(async (req: AuthenticatedRequest, 
 
     // Allow profile completion even if profile incomplete
     const allowedPaths = ['/complete-profile', '/users/me', '/auth/logout']
-    if (!user.name && !allowedPaths.includes(req.path)) {
+    const allowedPrefixes = ['/upload']
+    const pathAllowed = allowedPaths.includes(req.path) || allowedPrefixes.some(p => req.path.startsWith(p))
+    if (!user.name && !pathAllowed) {
       return throwError(403, 'Please complete your profile first')
     }
 
@@ -66,7 +68,8 @@ export const authenticateToken = asyncHandler(async (req: AuthenticatedRequest, 
     }
 
     next()
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode || error?.status) throw error
     return throwError(401, 'Authentication failed')
   }
 })
