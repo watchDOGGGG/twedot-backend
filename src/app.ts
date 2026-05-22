@@ -15,6 +15,7 @@ import { feedbackRouterV1 } from './modules/feedback/routes/v1'
 import { systemRouterV1 } from './modules/system/routes/v1'
 import { messagesRouterV1 } from './modules/messages/routes/v1'
 import { forwardRouterV1 } from './modules/messages/forward/forward.routes'
+import { adminRouterV1 } from './modules/admin/admin.routes'
 
 const app: Application = express()
 
@@ -107,6 +108,7 @@ app.use('/api/v1/feedback', feedbackRouterV1)
 app.use('/api/v1/system', systemRouterV1)
 app.use('/api/v1/messages', messagesRouterV1)
 app.use('/api/v1/messages', forwardRouterV1)
+app.use('/api/v1/admin', adminRouterV1)
 
 // rabbit mq consumers
 app.use(errorHandler)

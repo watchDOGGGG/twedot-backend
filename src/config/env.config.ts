@@ -24,6 +24,8 @@ const envSchema = z.object({
   // Comma-separated list of allowed CORS origins e.g. https://app.twedot.com,https://admin.twedot.com
   // Leave unset in development to allow all origins
   ALLOWED_ORIGINS: z.string().optional(),
+  // Admin panel key — required to access /api/v1/admin/* endpoints
+  ADMIN_KEY: z.string().optional(),
 })
 
 const envSchemaValidation = envSchema.safeParse(process.env)
