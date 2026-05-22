@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
-import { Op, fn, col, literal, where } from 'sequelize'
+import { Op, fn, col, literal } from 'sequelize'
+import sequelize from '../../config/db-config/sequelize.instance'
 import UserRepository from '../users/repositories/user.repository'
 
 const router = Router()
@@ -74,6 +75,36 @@ router.get('/users', async (req: Request, res: Response) => {
       message: 'Users',
       data: { users: rows, total: count, page, limit },
     })
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+// GET /admin/growth?days=30  — daily registrations for the past N days
+router.get('/growth', async (req: Request, res: Response) => {
+  try {
+    const days = Math.min(90, Math.max(7, parseInt(req.query.days as string) || 30))
+
+    const rows = await sequelize.query(
+      `SELECT DATE(created_at) AS day, COUNT(*)::int AS count
+       FROM users
+       WHERE created_at >= NOW() - INTERVAL '${days} days'
+       GROUP BY day
+       ORDER BY day ASC`,
+      { type: 'SELECT' }
+    ) as Array<{ day: string; count: number }>
+
+    // Fill in zero-count days so the chart is continuous
+    const result: Array<{ day: string; count: number }> = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = d.toISOString().split('T')[0]
+      const found = rows.find(r => r.day.startsWith(key))
+      result.push({ day: key, count: found ? Number(found.count) : 0 })
+    }
+
+    res.json({ success: true, message: 'Growth data', data: result })
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message })
   }
