@@ -43,10 +43,10 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many auth requests, please try again later.' },
 })
 
-// Search is a geo DB query — expensive; cap tightly
+// Search is a geo DB query — allow frequent use for nearby browsing
 const searchLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 min
-  max: 10,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },

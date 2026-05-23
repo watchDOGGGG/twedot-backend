@@ -304,7 +304,13 @@ class UserService {
     if (!user) {
       return throwError(404, { message: 'User not found' })
     }
-    return user
+    const isOnlineFlag = await redisClient.exists(`online:${userId}`)
+    const lastSeen = await redisClient.get(`lastseen:${userId}`)
+    return {
+      ...user.toJSON(),
+      is_online: isOnlineFlag === 1,
+      last_seen: lastSeen || null,
+    }
   }
 
   public async getUserByPhone(phone_number: string) {
@@ -321,6 +327,18 @@ class UserService {
   public async searchUsers(payload: SearchUsersPayload, excludeUserId: string) {
     const { occupation, latitude, longitude } = payload
     const RADIUS_KM = 10
+
+    const occupations = occupation.split(',').map((o) => o.trim()).filter(Boolean)
+    const replacements: Record<string, any> = { lat: latitude, lng: longitude, excludeUserId }
+
+    let occupationFilter: string
+    if (occupations.length === 1) {
+      occupationFilter = 'AND occupation ILIKE :occ0'
+      replacements.occ0 = `%${occupations[0]}%`
+    } else {
+      occupationFilter = `AND (${occupations.map((_, i) => `occupation ILIKE :occ${i}`).join(' OR ')})`
+      occupations.forEach((occ, i) => { replacements[`occ${i}`] = `%${occ}%` })
+    }
 
     const query = `
     SELECT
@@ -341,9 +359,9 @@ class UserService {
         ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
       ) / 1000 AS distance_km
     FROM users
-    WHERE 
+    WHERE
       is_verified = true
-      AND occupation ILIKE :occupation
+      ${occupationFilter}
       AND name IS NOT NULL
       AND latitude IS NOT NULL
       AND longitude IS NOT NULL
@@ -353,12 +371,7 @@ class UserService {
   `
 
     const users = (await UserRepository.sequelize!.query(query, {
-      replacements: {
-        occupation: `%${occupation}%`,
-        lat: latitude,
-        lng: longitude,
-        excludeUserId,
-      },
+      replacements,
       type: 'SELECT',
       raw: true,
     })) as any[]

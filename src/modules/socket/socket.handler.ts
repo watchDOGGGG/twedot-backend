@@ -49,6 +49,9 @@ export class SocketHandler {
 
           socket.emit('authenticated', { success: true })
 
+          // Notify subscribers that this user is now online
+          this.notifySubscribers(authToken.user_id, true)
+
           this.setupEvents(socket)
 
           setTimeout(() => {
@@ -172,12 +175,68 @@ export class SocketHandler {
       })
     })
 
+    socket.on('react_to_message', async (data: { messageId: string; emoji: string; recipientId: string }) => {
+      if (!socket.userId || !data?.messageId || !data?.emoji || !data?.recipientId) return
+      try {
+        const { userService } = await import('../users/user.service')
+        const blocked = await userService.isBlocked(data.recipientId, socket.userId)
+        if (blocked) return
+        this.io.to(`user:${data.recipientId}`).emit('message_reaction', {
+          messageId: data.messageId,
+          emoji: data.emoji,
+          senderId: socket.userId,
+          chatId: socket.userId,
+        })
+      } catch (err) {
+        logger.error('react_to_message error:', err as any)
+      }
+    })
+
     socket.on('disconnect', async () => {
       if (!socket.userId) return
-      await this.redis.setEx(`lastseen:${socket.userId}`, 86400, new Date().toISOString())
+      const lastSeen = new Date().toISOString()
+      await this.redis.setEx(`lastseen:${socket.userId}`, 86400, lastSeen)
       await this.redis.del(`online:${socket.userId}`)
       await this.redis.del(`socket:${socket.userId}`)
+      // Notify subscribers that this user went offline
+      this.notifySubscribers(socket.userId, false, lastSeen)
     })
+
+    socket.on('subscribe_status', async (data: { userIds: string[] }) => {
+      if (!socket.userId || !Array.isArray(data?.userIds)) return
+      const subscriberId = socket.userId
+      const pipeline = this.redis.multi()
+      for (const targetId of data.userIds.slice(0, 100)) {
+        pipeline.sAdd(`status_subs:${targetId}`, subscriberId)
+        pipeline.expire(`status_subs:${targetId}`, 86400)
+      }
+      await pipeline.exec()
+      // Immediately respond with current status of requested users
+      const statuses: Record<string, { isOnline: boolean; lastSeen?: string }> = {}
+      await Promise.all(
+        data.userIds.slice(0, 100).map(async (targetId) => {
+          const isOnline = await this.redis.exists(`online:${targetId}`)
+          const lastSeen = await this.redis.get(`lastseen:${targetId}`)
+          statuses[targetId] = { isOnline: isOnline === 1, lastSeen: lastSeen || undefined }
+        })
+      )
+      socket.emit('online_status_batch', statuses)
+    })
+  }
+
+  private async notifySubscribers(userId: string, isOnline: boolean, lastSeen?: string) {
+    try {
+      const subscribers = await this.redis.sMembers(`status_subs:${userId}`)
+      for (const subscriberId of subscribers) {
+        if (isOnline) {
+          this.io.to(`user:${subscriberId}`).emit('user:online', { userId })
+        } else {
+          this.io.to(`user:${subscriberId}`).emit('user:offline', { userId, lastSeen })
+        }
+      }
+    } catch (err) {
+      logger.error('notifySubscribers error:', err as any)
+    }
   }
 
   private async sendMessage(socket: AuthSocket, data: any) {
