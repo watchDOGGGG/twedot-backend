@@ -324,12 +324,12 @@ class UserService {
     return user
   }
 
-  public async searchUsers(payload: SearchUsersPayload, excludeUserId: string) {
+  public async searchUsers(payload: SearchUsersPayload) {
     const { occupation, latitude, longitude } = payload
     const RADIUS_KM = 10
 
     const occupations = occupation.split(',').map((o) => o.trim()).filter(Boolean)
-    const replacements: Record<string, any> = { lat: latitude, lng: longitude, excludeUserId }
+    const replacements: Record<string, any> = { lat: latitude, lng: longitude }
 
     let occupationFilter: string
     if (occupations.length === 1) {
@@ -365,7 +365,6 @@ class UserService {
       AND name IS NOT NULL
       AND latitude IS NOT NULL
       AND longitude IS NOT NULL
-      AND id != :excludeUserId
     ORDER BY distance_km ASC
     LIMIT 50
   `

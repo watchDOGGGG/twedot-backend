@@ -130,7 +130,7 @@ class UserController {
       longitude: parseFloat(req.query.longitude as string),
     }
 
-    const response = await this.userS.searchUsers(payload, req.user!.id)
+    const response = await this.userS.searchUsers(payload)
 
     sendSuccessRes({
       data: response,
