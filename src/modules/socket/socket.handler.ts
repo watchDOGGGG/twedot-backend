@@ -243,8 +243,25 @@ export class SocketHandler {
     const { userService } = await import('../users/user.service')
     const sender = await userService.getUserById(socket.userId!)
 
-    const message = {
-      id: data.clientMessageId || `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,
+    const messageId = data.clientMessageId || `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`
+
+    // If sender marked this message as protected, insert into important_messages immediately
+    if (data.isImportant && data.recipientId) {
+      try {
+        const { default: sequelize } = await import('../../config/db-config/sequelize.instance')
+        await sequelize.query(
+          `INSERT INTO important_messages (id, message_id, original_sender_id, original_recipient_id, forward_count, created_at, updated_at)
+           VALUES (gen_random_uuid(), :messageId, :senderId, :recipientId, 0, NOW(), NOW())
+           ON CONFLICT (message_id) DO NOTHING`,
+          { replacements: { messageId, senderId: socket.userId, recipientId: data.recipientId }, type: 'INSERT' as any },
+        )
+      } catch (err) {
+        logger.error(`[Socket] Failed to insert important_message: ${err}`)
+      }
+    }
+
+    const message: any = {
+      id: messageId,
       clientMessageId: data.clientMessageId,
       senderId: socket.userId,
       senderName: sender?.name || null,
@@ -262,6 +279,7 @@ export class SocketHandler {
       fileName: data.fileName,
       fileSize: data.fileSize,
       duration: data.duration,
+      isImportant: data.isImportant ? true : undefined,
     }
 
     // Don't deliver or acknowledge if recipient has blocked the sender
