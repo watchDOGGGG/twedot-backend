@@ -286,9 +286,13 @@ export class SocketHandler {
     const isBlocked = await userService.isBlocked(data.recipientId, socket.userId!)
 
     if (!isBlocked) {
-      const recipientSocket = await this.redis.get(`socket:${data.recipientId}`)
-      logger.info(`[Socket] recipientSocket for ${data.recipientId}: ${recipientSocket ? 'ONLINE' : 'OFFLINE'}`)
-      if (recipientSocket) {
+      // Use live room membership instead of Redis key — the Redis key can be stale
+      // if the app was killed (TCP timeout means the disconnect event fires late),
+      // which would cause the message to be emitted to a dead socket and silently lost.
+      const recipientRoom = this.io.sockets.adapter.rooms.get(`user:${data.recipientId}`)
+      const recipientOnline = recipientRoom != null && recipientRoom.size > 0
+      logger.info(`[Socket] recipient ${data.recipientId}: ${recipientOnline ? `ONLINE (${recipientRoom!.size} socket(s))` : 'OFFLINE'}`)
+      if (recipientOnline) {
         this.io.to(`user:${data.recipientId}`).emit('receive_message', message)
         message.status = 'delivered'
       } else {
