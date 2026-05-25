@@ -133,7 +133,7 @@ class NotificationService {
     }
 
     // Pass media URL so the recipient's device can show a BigPicture banner
-    if (payload.messageType === 'image' || payload.messageType === 'video') {
+    if (payload.messageType === 'image' || payload.messageType === 'video' || payload.messageType === 'sticker') {
       const url = payload.content || ''
       if (url.startsWith('http://') || url.startsWith('https://')) data.mediaUrl = url
     } else if (
@@ -210,6 +210,7 @@ class NotificationService {
       case 'pickup_request': {
         try { return `🚗 Pickup request: ${JSON.parse(payload.content || '{}').itemTitle || 'Item'}` } catch { return '🚗 Pickup request' }
       }
+      case 'sticker': return '🎭 Sticker'
       default: {
         const text = payload.content || 'New message'
         if (text.startsWith('http://') || text.startsWith('https://')) return '📎 Attachment'
@@ -233,6 +234,7 @@ class NotificationService {
           case 'booking': originalContext = 'your booking'; break
           case 'item_reference': originalContext = 'your item'; break
           case 'pickup_request': originalContext = 'your pickup request'; break
+          case 'sticker': originalContext = 'your sticker'; break
           default: {
             const snip = String(snap?.content || '').trim()
             if (snip && !snip.startsWith('http')) {

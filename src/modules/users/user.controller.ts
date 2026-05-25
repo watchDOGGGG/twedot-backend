@@ -1,6 +1,7 @@
 // modules/users/user.controller.ts
 import { asyncHandler, buildResponse } from '../../helpers'
 import { Request } from 'express'
+import { getIo } from '../../config/socket.singleton'
 import {
   RegisterPayload,
   VerifyOtpPayload,
@@ -215,6 +216,19 @@ class UserController {
       userId: req.user!.id,
     }
     const response = await this.userS.updateProfile(payload)
+
+    if (response.updated) {
+      const io = getIo()
+      if (io) {
+        const u = response.user as any
+        io.emit('profile_update', {
+          userId: req.user!.id,
+          name: u.name ?? null,
+          profile_photo_url: u.profile_photo_url ?? null,
+          role: u.occupation ?? null,
+        })
+      }
+    }
 
     sendSuccessRes({
       data: response,
