@@ -5,6 +5,7 @@
   "repository": "",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "2.106.1",
     "@types/redis": "4.0.10",
     "@types/uuid": "8.3.4",
     "africastalking": "0.7.9",
