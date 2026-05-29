@@ -159,17 +159,38 @@ class NotificationService {
     )
   }
 
-  public async sendStatusNotification(recipientId: string, senderName: string, senderId: string) {
+  public async sendStatusNotification(recipientId: string, senderName: string, senderId: string, senderPhotoUrl?: string | null) {
     const fcmToken = await this.getFcmToken(recipientId)
     if (!fcmToken) return
 
-    await this.sendDataMessage(fcmToken, recipientId, {
-      type: 'new_status',
-      senderId,
+    const data: Record<string, string> = { type: 'new_status', senderId, senderName }
+    if (senderPhotoUrl) data.senderPhotoUrl = senderPhotoUrl
+
+    await this.sendNotificationMessage(
+      fcmToken,
+      recipientId,
       senderName,
-    }, {
-      priority: 'normal',
-    })
+      `${senderName} posted a new status`,
+      data,
+      { collapseKey: `status_${senderId}` },
+    )
+  }
+
+  public async sendJoinNotification(recipientId: string, newUserName: string, newUserId: string, newUserPhotoUrl?: string | null) {
+    const fcmToken = await this.getFcmToken(recipientId)
+    if (!fcmToken) return
+
+    const data: Record<string, string> = { type: 'new_user_joined', userId: newUserId, userName: newUserName }
+    if (newUserPhotoUrl) data.userPhotoUrl = newUserPhotoUrl
+
+    await this.sendNotificationMessage(
+      fcmToken,
+      recipientId,
+      'Contact joined Twedot',
+      `${newUserName} is now on Twedot!`,
+      data,
+      { collapseKey: `join_${newUserId}` },
+    )
   }
 
   public async sendAppUpdateNotification(userIds: string[], version: string, releaseNotes?: string) {

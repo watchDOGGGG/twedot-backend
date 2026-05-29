@@ -142,7 +142,8 @@ class UserController {
   })
   public verifyUserContacts = asyncHandler(async (req, res) => {
     const { contacts } = req.body
-    const response = await this.userS.verifyUserContacts({ contacts })
+    const requestingUserId = (req as any).user?.id as string | undefined
+    const response = await this.userS.verifyUserContacts({ contacts, requestingUserId })
 
     sendSuccessRes({
       data: response,

@@ -352,6 +352,17 @@ export class SocketHandler {
               type: 'status_update',
               status: statusData,
             })
+            // Also push FCM so notification appears even when app is foregrounded
+            if (statusData.userName) {
+              import('../notifications/notification.service').then(({ notificationService }) => {
+                notificationService.sendStatusNotification(
+                  targetUserId,
+                  statusData.userName,
+                  statusData.userId as string,
+                  statusData.userPhoto ?? null,
+                ).catch(() => {})
+              }).catch(() => {})
+            }
           } else {
             await this.redis.lPush(
               `status_queue:${targetUserId}`,
@@ -369,6 +380,7 @@ export class SocketHandler {
                   targetUserId,
                   statusData.userName,
                   statusData.userId as string,
+                  statusData.userPhoto ?? null,
                 ).catch(() => {})
               }).catch(() => {})
             }

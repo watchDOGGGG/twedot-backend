@@ -463,8 +463,8 @@ class UserService {
     return { message: 'Account deleted successfully' }
   }
 
-  public async verifyUserContacts(payload: { contacts: { phone_number: string; name: string }[] }) {
-    const { contacts } = payload
+  public async verifyUserContacts(payload: { contacts: { phone_number: string; name: string }[]; requestingUserId?: string }) {
+    const { contacts, requestingUserId } = payload
 
     if (!contacts || contacts.length === 0) {
       return { inSystem: [], notInSystem: [] }
@@ -511,11 +511,37 @@ class UserService {
       }
     }
 
+    // Fire-and-forget: notify existing users that the new user has joined
+    if (requestingUserId && inSystem.length > 0) {
+      this.notifyJoiningUser(requestingUserId, inSystem).catch(() => {})
+    }
+
     return {
       inSystem,
       notInSystem,
       totalInSystem: inSystem.length,
       totalNotInSystem: notInSystem.length,
+    }
+  }
+
+  private async notifyJoiningUser(userId: string, inSystemContacts: any[]) {
+    try {
+      const alreadyNotified = await redisClient.get(`join_notified:${userId}`)
+      if (alreadyNotified) return
+
+      const user = await UserRepository.findByPk(userId, { attributes: ['name', 'profile_photo_url'] })
+      if (!user || !(user as any).name) return
+
+      await redisClient.setEx(`join_notified:${userId}`, 86400 * 30, '1')
+
+      const { notificationService } = await import('../notifications/notification.service')
+      for (const contact of inSystemContacts) {
+        notificationService
+          .sendJoinNotification(contact.user_id, (user as any).name, userId, (user as any).profile_photo_url ?? null)
+          .catch(() => {})
+      }
+    } catch (err) {
+      logger.error('[JoinNotify] error:', err as any)
     }
   }
 
