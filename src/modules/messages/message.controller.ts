@@ -49,26 +49,33 @@ export const sendMessageHttp = asyncHandler(async (req: any, res: Response) => {
   }
 
   const io = getIo()
-  const recipientSocketId = await redisClient.get(`socket:${recipientId}`)
-  logger.info(`[HTTP send] recipient ${recipientId} is ${recipientSocketId ? 'ONLINE' : 'OFFLINE'}`)
+  // Use live room membership (same as socket handler) — Redis key can be stale when the app
+  // was killed and the TCP disconnect hasn't fired yet, causing messages to emit to a dead
+  // socket and be silently lost (neither queued for offline nor triggering FCM).
+  const recipientRoom = io?.sockets.adapter.rooms.get(`user:${recipientId}`)
+  const recipientOnline = recipientRoom != null && recipientRoom.size > 0
+  logger.info(`[HTTP send] recipient ${recipientId} is ${recipientOnline ? 'ONLINE' : 'OFFLINE'}`)
 
-  if (recipientSocketId && io) {
+  if (recipientOnline && io) {
     io.to(`user:${recipientId}`).emit('receive_message', { ...message, status: 'delivered' })
     message.status = 'delivered'
   } else {
     await redisClient.lPush(`messages:${recipientId}`, JSON.stringify(message))
     await redisClient.lTrim(`messages:${recipientId}`, 0, 499)
     await redisClient.expire(`messages:${recipientId}`, 604800)
-
-    import('../notifications/notification.service').then(({ notificationService }) => {
-      notificationService.sendMessageNotification(recipientId, {
-        senderName: message.senderName,
-        senderId: message.senderId,
-        messageType: message.messageType,
-        content: message.content,
-      }).catch((err) => logger.error('FCM error (http send):', err))
-    }).catch((err) => logger.error('FCM import error (http send):', err))
   }
+
+  // Always send FCM — covers backgrounded apps where socket looks alive but isn't processing,
+  // and foreground apps on a different screen. Frontend suppresses the notification if the
+  // user is actively on that chat screen (same behaviour as the socket send_message path).
+  import('../notifications/notification.service').then(({ notificationService }) => {
+    notificationService.sendMessageNotification(recipientId, {
+      senderName: message.senderName,
+      senderId: message.senderId,
+      messageType: message.messageType,
+      content: message.content,
+    }).catch((err) => logger.error('FCM error (http send):', err))
+  }).catch((err) => logger.error('FCM import error (http send):', err))
 
   if (io) {
     const senderSocketId = await redisClient.get(`socket:${senderId}`)

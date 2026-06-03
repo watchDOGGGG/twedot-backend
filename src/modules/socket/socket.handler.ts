@@ -202,6 +202,18 @@ export class SocketHandler {
       this.notifySubscribers(socket.userId, false, lastSeen)
     })
 
+    // Client emits this on reconnect to catch any messages delivered while the socket
+    // was authenticating (covers the 500ms race window before sendOfflineMessages fires,
+    // and REST-sent notification replies that arrived between two connect cycles).
+    socket.on('sync_messages_since', async () => {
+      if (!socket.userId) return
+      try {
+        await this.sendOfflineMessages(socket, socket.userId)
+      } catch (err) {
+        logger.error('sync_messages_since error:', err as any)
+      }
+    })
+
     socket.on('subscribe_status', async (data: { userIds: string[] }) => {
       if (!socket.userId || !Array.isArray(data?.userIds)) return
       const subscriberId = socket.userId
