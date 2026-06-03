@@ -59,11 +59,15 @@ export const sendMessageHttp = asyncHandler(async (req: any, res: Response) => {
   if (recipientOnline && io) {
     io.to(`user:${recipientId}`).emit('receive_message', { ...message, status: 'delivered' })
     message.status = 'delivered'
-  } else {
-    await redisClient.lPush(`messages:${recipientId}`, JSON.stringify(message))
-    await redisClient.lTrim(`messages:${recipientId}`, 0, 499)
-    await redisClient.expire(`messages:${recipientId}`, 604800)
   }
+
+  // Always push to offline queue — even when the socket looks online, the app may be
+  // backgrounded with JS suspended so the emit above is silently missed. The queue
+  // ensures delivery via offline_messages / sync_messages_since on next foreground.
+  // Client-side processedMessageIds + WatermelonDB duplicate-key handling prevent doubles.
+  await redisClient.lPush(`messages:${recipientId}`, JSON.stringify(message))
+  await redisClient.lTrim(`messages:${recipientId}`, 0, 499)
+  await redisClient.expire(`messages:${recipientId}`, 604800)
 
   // Always send FCM — covers backgrounded apps where socket looks alive but isn't processing,
   // and foreground apps on a different screen. Frontend suppresses the notification if the

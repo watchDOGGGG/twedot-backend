@@ -307,11 +307,15 @@ export class SocketHandler {
       if (recipientOnline) {
         this.io.to(`user:${data.recipientId}`).emit('receive_message', message)
         message.status = 'delivered'
-      } else {
-        await this.redis.lPush(`messages:${data.recipientId}`, JSON.stringify(message))
-        await this.redis.lTrim(`messages:${data.recipientId}`, 0, 499)
-        await this.redis.expire(`messages:${data.recipientId}`, 604800)
       }
+
+      // Always push to offline queue — even when socket looks online, the app may be
+      // backgrounded (JS suspended) and the emit above silently missed. Queue ensures
+      // delivery via offline_messages on reconnect or sync_messages_since on foreground.
+      // Client processedMessageIds + WatermelonDB dedup prevent visual duplicates.
+      await this.redis.lPush(`messages:${data.recipientId}`, JSON.stringify(message))
+      await this.redis.lTrim(`messages:${data.recipientId}`, 0, 499)
+      await this.redis.expire(`messages:${data.recipientId}`, 604800)
 
       // Always send FCM push — frontend suppresses it if the user is actively on that chat screen.
       // This covers: backgrounded app (socket looks alive in Redis but app isn't processing),
@@ -497,13 +501,20 @@ export class SocketHandler {
 
   private async sendOfflineMessages(socket: AuthSocket, userId: string) {
     const messages = await this.redis.lRange(`messages:${userId}`, 0, -1)
+    logger.info(`[sendOfflineMessages] userId=${userId} queued_messages=${messages.length}`)
     if (messages.length > 0) {
-      socket.emit('offline_messages', messages.map((m) => JSON.parse(m)))
+      const parsed = messages.map((m) => JSON.parse(m))
+      parsed.forEach((m: any) => {
+        logger.info(`[sendOfflineMessages] delivering msg id=${m.id} senderId=${m.senderId} recipientId=${m.recipientId} type=${m.messageType}`)
+      })
+      socket.emit('offline_messages', parsed)
       await this.redis.del(`messages:${userId}`)
+      logger.info(`[sendOfflineMessages] emitted offline_messages and cleared queue for userId=${userId}`)
     }
 
     // Messages this user sent via notification reply while offline
     const sentMessages = await this.redis.lRange(`sent_queue:${userId}`, 0, -1)
+    logger.info(`[sendOfflineMessages] userId=${userId} sent_queue=${sentMessages.length}`)
     if (sentMessages.length > 0) {
       for (const m of sentMessages) {
         socket.emit('notification_reply_sent', JSON.parse(m))
