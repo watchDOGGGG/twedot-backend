@@ -11,6 +11,7 @@ interface MessagePayload {
   messageType: string
   content?: string
   caption?: string
+  isForwarded?: boolean
   replyToId?: string
   replySnapshot?: string
 }
@@ -130,6 +131,7 @@ class NotificationService {
       senderPhotoUrl: payload.senderPhotoUrl || '',
       messageType: payload.messageType,
       body,
+      ...(payload.isForwarded ? { isForwarded: 'true' } : {}),
     }
 
     // Pass media URL so the recipient's device can show a BigPicture banner
@@ -207,35 +209,41 @@ class NotificationService {
   }
 
   private getMessageBody(payload: MessagePayload): string {
+    const fwd = payload.isForwarded ? '↪ ' : ''
     switch (payload.messageType) {
-      case 'image': return payload.caption ? `📷 ${payload.caption}` : '📷 Photo'
-      case 'video': return payload.caption ? `🎥 ${payload.caption}` : '🎥 Video'
+      case 'image': return fwd + (payload.caption ? `📷 ${payload.caption}` : '📷 Photo')
+      case 'video': return fwd + (payload.caption ? `🎥 ${payload.caption}` : '🎥 Video')
       case 'audio':
-      case 'voice': return '🎵 Voice message'
-      case 'document': return '📄 Document'
+      case 'voice': return fwd + '🎵 Voice message'
+      case 'document': return fwd + (payload.caption ? `📄 ${payload.caption}` : '📄 Document')
       case 'contact': {
-        try { return `👤 ${JSON.parse(payload.content || '{}').name || 'Contact'}` } catch { return '👤 Contact' }
+        try { return fwd + `👤 ${JSON.parse(payload.content || '{}').name || 'Contact'}` } catch { return fwd + '👤 Contact' }
       }
       case 'item_reference': {
-        try { return `📦 ${JSON.parse(payload.content || '{}').title || 'Item'}` } catch { return '📦 Item' }
+        try { return fwd + `📦 ${JSON.parse(payload.content || '{}').title || 'Item'}` } catch { return fwd + '📦 Item' }
       }
       case 'order': {
         try {
           const o = JSON.parse(payload.content || '{}')
-          return `🛒 Order request: ${o.itemTitle || 'Item'}${o.quantity ? ` (×${o.quantity})` : ''}`
-        } catch { return '🛒 Order request' }
+          return fwd + `🛒 Order: ${o.itemTitle || 'Item'}${o.quantity ? ` (×${o.quantity})` : ''}`
+        } catch { return fwd + '🛒 Order' }
       }
       case 'booking': {
-        try { return `📅 Booking request: ${JSON.parse(payload.content || '{}').itemTitle || 'Service'}` } catch { return '📅 Booking request' }
+        try { return fwd + `📅 Booking: ${JSON.parse(payload.content || '{}').itemTitle || 'Service'}` } catch { return fwd + '📅 Booking' }
       }
       case 'pickup_request': {
-        try { return `🚗 Pickup request: ${JSON.parse(payload.content || '{}').itemTitle || 'Item'}` } catch { return '🚗 Pickup request' }
+        try { return fwd + `🚗 Pickup: ${JSON.parse(payload.content || '{}').itemTitle || 'Item'}` } catch { return fwd + '🚗 Pickup request' }
       }
-      case 'sticker': return '🎭 Sticker'
+      case 'sticker': return fwd + '🎭 Sticker'
+      case 'location': return fwd + '📍 Location'
       default: {
         const text = payload.content || 'New message'
-        if (text.startsWith('http://') || text.startsWith('https://')) return '📎 Attachment'
-        return text.length > 120 ? text.substring(0, 120) + '…' : text
+        if (text.startsWith('http://') || text.startsWith('https://')) return fwd + '📎 Attachment'
+        if (text.startsWith('{"name":') && text.includes('"phoneNumbers"')) {
+          try { return fwd + `👤 ${JSON.parse(text).name || 'Contact'}` } catch {}
+        }
+        const trimmed = text.length > 120 ? text.substring(0, 120) + '…' : text
+        return fwd ? fwd + trimmed : trimmed
       }
     }
   }

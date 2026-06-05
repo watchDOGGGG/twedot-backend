@@ -78,6 +78,8 @@ export const sendMessageHttp = asyncHandler(async (req: any, res: Response) => {
       senderId: message.senderId,
       messageType: message.messageType,
       content: message.content,
+      caption: message.caption,
+      isForwarded: message.isForwarded,
     }).catch((err) => logger.error('FCM error (http send):', err))
   }).catch((err) => logger.error('FCM import error (http send):', err))
 

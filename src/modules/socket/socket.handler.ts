@@ -328,6 +328,7 @@ export class SocketHandler {
           messageType: message.messageType,
           content: message.content,
           caption: message.caption,
+          isForwarded: message.isForwarded,
           replyToId: message.replyToId,
           replySnapshot: typeof message.replySnapshot === 'string'
             ? message.replySnapshot
