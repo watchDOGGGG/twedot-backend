@@ -69,7 +69,6 @@ class UserService {
 
     const otp = this.generateOtp()
     const otpKey = this.getOtpKey(phone_number)
-    console.log(`[DEV] OTP for ${phone_number}: ${otp}`)
 
     await redisClient.setEx(otpKey, this.OTP_TTL, otp)
     await redisClient.setEx(cooldownKey, this.OTP_COOLDOWN, '1')
@@ -131,7 +130,6 @@ class UserService {
     }
 
     const newOtp = this.generateOtp()
-    console.log(`[DEV] OTP for ${phone_number}: ${newOtp}`)
     await redisClient.setEx(this.getOtpKey(phone_number), this.OTP_TTL, newOtp)
     await redisClient.setEx(cooldownKey, this.OTP_COOLDOWN, '1')
 

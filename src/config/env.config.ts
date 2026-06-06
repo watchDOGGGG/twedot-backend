@@ -18,9 +18,9 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
-  // Africa's Talking SMS
-  AT_API_KEY: z.string(),
-  AT_USERNAME: z.string(),
+  // Infobip SMS
+  INFOBIP_API_KEY: z.string(),
+  INFOBIP_BASE_URL: z.string(),
   // Comma-separated list of allowed CORS origins e.g. https://app.twedot.com,https://admin.twedot.com
   // Leave unset in development to allow all origins
   ALLOWED_ORIGINS: z.string().optional(),
