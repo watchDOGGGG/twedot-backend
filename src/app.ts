@@ -97,7 +97,6 @@ app.get('/', (_req, res: Response) => {
 })
 
 // route registration — specific limiters apply before the router
-app.use('/api/v1/users/auth', authLimiter)
 app.use('/api/v1/users/search', searchLimiter)
 app.use('/api/v1/media', uploadLimiter)
 app.use('/api/v1/users', userRouterV1)
