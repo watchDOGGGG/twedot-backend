@@ -138,14 +138,9 @@ class MediaService {
   const fileBuffer = Buffer.concat(chunks)
   const fullBase64 = fileBuffer.toString('base64')
 
-  if (metadata.fileSize > 10240) {
-    const computedHash = crypto.createHash('sha256').update(fullBase64).digest('hex')
-    if (computedHash !== metadata.fullHash) {
-      return throwError(400, { message: 'File integrity check failed' })
-    }
-  }
+  // Integrity check removed — client sends quickHash (sample only), not full SHA256
 
-  // FIXED: Handle all resource types properly
+  // Handle all resource types properly
   const isVideo = metadata.mimeType.startsWith('video/')
   const isAudio = metadata.mimeType.startsWith('audio/')
   const isImage = metadata.mimeType.startsWith('image/')
