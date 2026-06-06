@@ -75,7 +75,7 @@ class UserService {
     await redisClient.setEx(cooldownKey, this.OTP_COOLDOWN, '1')
 
     if (existingUser?.is_verified) {
-      await sendSms(phone_number, `Your Twedot verification code is: ${otp}. Valid for 5 minutes.`)
+      try { await sendSms(phone_number, `Your Twedot verification code is: ${otp}. Valid for 5 minutes.`) } catch (e: any) { logger.error('SMS send failed:', e) }
 
       return {
         message: 'OTP sent successfully',
@@ -112,7 +112,7 @@ class UserService {
       return throwError(429, { message: 'Too many attempts. Try again later.' })
     }
 
-    await sendSms(phone_number, `Your Twedot verification code is: ${otp}. Valid for 5 minutes.`)
+    try { await sendSms(phone_number, `Your Twedot verification code is: ${otp}. Valid for 5 minutes.`) } catch (e: any) { logger.error('SMS send failed:', e) }
     return {
       message: 'OTP sent successfully',
       phone_number,
@@ -135,7 +135,7 @@ class UserService {
     await redisClient.setEx(this.getOtpKey(phone_number), this.OTP_TTL, newOtp)
     await redisClient.setEx(cooldownKey, this.OTP_COOLDOWN, '1')
 
-    await sendSms(phone_number, `Your Twedot verification code is: ${newOtp}. Valid for 5 minutes.`)
+    try { await sendSms(phone_number, `Your Twedot verification code is: ${newOtp}. Valid for 5 minutes.`) } catch (e: any) { logger.error('SMS send failed:', e) }
 
     return {
       message: 'OTP resent successfully',
