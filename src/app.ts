@@ -27,7 +27,7 @@ app.use(helmet())
 // Rate limiters
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 300,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
@@ -36,7 +36,7 @@ const globalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
@@ -56,7 +56,7 @@ const searchLimiter = rateLimit({
 // Media uploads consume bandwidth + Cloudinary processing
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
