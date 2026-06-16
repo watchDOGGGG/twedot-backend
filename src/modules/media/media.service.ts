@@ -1,5 +1,6 @@
 import { redisClient } from '../../config/redis'
 import { cloudinary } from '../../config/cloudinary.config'
+import { mediaUploadQueue } from './media.worker'
 import crypto from 'crypto'
 import { throwError } from '../../helpers'
 
@@ -229,6 +230,33 @@ class MediaService {
       receivedChunks: metadata.receivedChunks.length,
       totalChunks: metadata.totalChunks,
     }
+  }
+
+  // iOS native upload path: store buffer in Redis, queue Cloudinary processing.
+  // Returns jobId immediately; emits media_job_complete via socket when done.
+  public async uploadDirect(
+    userId: string,
+    fileBuffer: Buffer,
+    fileName: string,
+    mimeType: string,
+  ): Promise<{ jobId: string }> {
+    if (fileBuffer.length > this.MAX_FILE_SIZE) {
+      return throwError(413, { message: 'File too large. Max 100MB allowed.' })
+    }
+
+    const jobId = crypto.randomUUID()
+    const redisKey = `direct_upload:${jobId}`
+
+    // Buffer lives in Redis until the worker picks it up (1-hour TTL as safety net)
+    await redisClient.setEx(redisKey, 3600, fileBuffer.toString('base64'))
+
+    await mediaUploadQueue.add(
+      'upload',
+      { userId, redisKey, fileName, mimeType },
+      { jobId, attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+    )
+
+    return { jobId }
   }
 
   public async deleteFromCloudinary(publicId: string, resourceType: string = 'image') {

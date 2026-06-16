@@ -9,6 +9,7 @@ import { logger } from './helpers/logger'
 import { redisClient } from './config/redis'
 import { startSocket } from './modules/socket'
 import { setIo } from './config/socket.singleton'
+import { startMediaWorker } from './modules/media/media.worker'
 
 dotenv.config()
 const PORT = parseInt(env.PORT || '2026', 10)
@@ -40,6 +41,7 @@ sequelize
         setIo(io)
         startSocket(io)
         logger.info('Socket.io started')
+        startMediaWorker()
 
         // Run once at startup, then on interval — deletes expired statuses regardless of user online state
         const { statusService } = await import('./modules/status/status.service')
