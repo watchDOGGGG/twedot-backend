@@ -76,9 +76,10 @@ class MediaController {
 
     const fileName = (req.body.fileName as string) || req.file.originalname || `upload_${Date.now()}`
     const mimeType = (req.body.mimeType as string) || req.file.mimetype
+    const clientJobId = req.body.jobId as string | undefined
     const userId = req.user!.id
 
-    const result = await mediaService.uploadDirect(userId, req.file.buffer, fileName, mimeType)
+    const result = await mediaService.uploadDirect(userId, req.file.buffer, fileName, mimeType, clientJobId)
 
     sendSuccessRes({
       data: result,

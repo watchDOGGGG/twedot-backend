@@ -239,12 +239,15 @@ class MediaService {
     fileBuffer: Buffer,
     fileName: string,
     mimeType: string,
+    clientJobId?: string,
   ): Promise<{ jobId: string }> {
     if (fileBuffer.length > this.MAX_FILE_SIZE) {
       return throwError(413, { message: 'File too large. Max 100MB allowed.' })
     }
 
-    const jobId = crypto.randomUUID()
+    // Use client-supplied jobId so the client can pre-register pendingJobMap before
+    // the upload, eliminating the race between worker completion and map registration.
+    const jobId = clientJobId || crypto.randomUUID()
     const redisKey = `direct_upload:${jobId}`
 
     // Buffer lives in Redis until the worker picks it up (1-hour TTL as safety net)
